@@ -1,0 +1,84 @@
+/*
+** created by vingo on july/3/2014
+*/
+var request= require('request'),
+	cheerio = require('cheerio'),
+	fs = require('fs'), 
+	urls= [], // urls is a variable to store the urls of the pictures. 
+	c=0,
+	number=0,target="http://www.yhd.com/marketing/allproduct.html";
+	
+function getallUrl(callback){
+    
+	 request(target,function(err,resp,body){
+	var list=[];
+	if(!err && resp.statusCode == 200)
+	  {
+		 var $ = cheerio.load(body);
+		 // get all a label with classname called 'allsort'
+		$('.allsort a').each(function(){
+			list.push(this.attribs['href']);
+		});
+		if(callback)
+		callback(list);
+		}else{
+			console.log('the website can not vist');
+		}
+	 });
+}
+//get all url link from www.yhd.com
+ getallUrl(function(data){
+			var urllist=data;
+		    console.log('starting visit the website:'+urllist[0]+'...');
+			getAllpic(urllist,0,show); //trigger getAllpic function ,
+	});
+
+function show(state){
+	c++;
+   console.log('category '+c+' '+state.msg+' total count:'+state.count);
+   next(state.AllUrl,state.index);
+}
+
+function next(data,k){
+
+ console.log('starting visit the website url:'+data[k]+'...');
+	 //if(k<2){ //grap 2 link from www.yhd.com    
+	   sleep(2000);// sleep 2 second
+	   getAllpic(data,k,show);
+	 //}
+}
+
+// get all pictures from a link,
+function getAllpic(data,key,callback){
+	
+	  request(data[key], function(err,resp,body)
+	  {
+		  if(!err && resp.statusCode == 200)
+		  {
+		  
+			var $ = cheerio.load(body),urls=[];
+			$('img').each(function(){
+				  var url = this.attribs['src']||this.attribs['original'];
+				  var width=this.attribs['width']
+					//fs.appendFile('img/url.txt',jsonlist);
+					  if(url&&url.indexOf('yihaodianimg.com')!=-1&&width>100) //get url include 'yihaodianimg.com' and the images width more than 100px
+					  {
+						urls.push(url);
+					  }
+				 
+			}); 
+			console.log('current images count :'+urls.length);
+			 for (var k=0;k<urls.length;k++){
+					  number++;
+					  request(urls[k]).pipe(fs.createWriteStream('img/' + number +'.jpg'));  //save img
+					  console.log(number+' OK');
+			     }
+			 callback({msg:'have Download finished..........',count:number,index:key+1,AllUrl:data}); //callback some information about execute state.
+		 }
+	 });
+ }
+ // sleep function
+  function sleep(milliSeconds) {
+    var startTime = new Date().getTime();
+    while (new Date().getTime() < startTime + milliSeconds);
+  }
